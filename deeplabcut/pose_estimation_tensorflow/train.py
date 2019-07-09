@@ -77,6 +77,7 @@ def start_preloading(sess, enqueue_op, dataset, placeholders):
 def load_and_enqueue_deterministic(sess, enqueue_op, coord, dataset, placeholders):
     numpy.random.seed(42)
     random.seed(42)
+    print('random seed (42) set! Training deterministically now ...')
     while not coord.should_stop():
         batch_np = dataset.next_batch()
         food = {pl: batch_np[name] for (name, pl) in placeholders.items()}
