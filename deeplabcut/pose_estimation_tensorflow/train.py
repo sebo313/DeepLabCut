@@ -17,6 +17,8 @@ import argparse
 from pathlib import Path
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
+import random
+import numpy
 
 from deeplabcut.pose_estimation_tensorflow.config import load_config
 from deeplabcut.pose_estimation_tensorflow.dataset.factory import create as create_dataset
@@ -55,6 +57,8 @@ def setup_preloading(batch_spec):
 
 
 def load_and_enqueue(sess, enqueue_op, coord, dataset, placeholders):
+    numpy.random.seed(42)
+    random.seed(42)
     while not coord.should_stop():
         batch_np = dataset.next_batch()
         food = {pl: batch_np[name] for (name, pl) in placeholders.items()}
@@ -65,6 +69,24 @@ def start_preloading(sess, enqueue_op, dataset, placeholders):
     coord = tf.train.Coordinator()
 
     t = threading.Thread(target=load_and_enqueue,
+                         args=(sess, enqueue_op, coord, dataset, placeholders))
+    t.start()
+
+    return coord, t
+
+def load_and_enqueue_deterministic(sess, enqueue_op, coord, dataset, placeholders):
+    numpy.random.seed(42)
+    random.seed(42)
+    while not coord.should_stop():
+        batch_np = dataset.next_batch()
+        food = {pl: batch_np[name] for (name, pl) in placeholders.items()}
+        sess.run(enqueue_op, feed_dict=food)
+
+
+def start_preloading_deterministic(sess, enqueue_op, dataset, placeholders):
+    coord = tf.train.Coordinator()
+
+    t = threading.Thread(target=load_and_enqueue_deterministic,
                          args=(sess, enqueue_op, coord, dataset, placeholders))
     t.start()
 
@@ -106,7 +128,10 @@ def train(config_yaml,displayiters,saveiters,maxiters,max_to_keep=5):
     saver = tf.train.Saver(max_to_keep=max_to_keep) # selects how many snapshots are stored, see https://github.com/AlexEMG/DeepLabCut/issues/8#issuecomment-387404835
 
     sess = tf.Session()
-    coord, thread = start_preloading(sess, enqueue_op, dataset, placeholders)
+    if cfg.deterministic:
+        coord, thread = start_preloading_deterministic(sess, enqueue_op, dataset, placeholders) 
+    else:    
+        coord, thread = start_preloading(sess, enqueue_op, dataset, placeholders)
     train_writer = tf.summary.FileWriter(cfg.log_dir, sess.graph)
     learning_rate, train_op = get_optimizer(total_loss, cfg)
 
