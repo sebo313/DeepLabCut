@@ -32,10 +32,9 @@ def Histogram(vector,color,bins):
     plt.hist(dvector,color=color,histtype='step',bins=bins)
 #    fig.colorbar(im, ax=ax)
 
-def PlottingResults(video,tmpfolder,Dataframe,scorer,cfg,showfigures,suffix='.png'):
+def PlottingResults(video,tmpfolder,Dataframe,scorer,cfg,showfigures,bodyparts2plot,suffix='.png'):
     ''' Plots poses vs time; pose x vs pose y; histogram of differences and likelihoods.'''
     plt.figure(figsize=(8, 6))
-    bodyparts2plot = cfg['bodyparts']
     pcutoff = cfg['pcutoff']
     colors = get_cmap(len(bodyparts2plot),name = cfg['colormap'])
     alphavalue = cfg['alphavalue']
@@ -108,7 +107,7 @@ def PlottingResults(video,tmpfolder,Dataframe,scorer,cfg,showfigures,suffix='.pn
     else:
         plt.show()
 
-def RunTrajectoryAnalysis(video,basefolder,DLCscorer,videofolder,cfg,showfigures,filtered=False):
+def RunTrajectoryAnalysis(video,basefolder,DLCscorer,videofolder,cfg,showfigures,bodyparts2plot,filtered=False):
     vname = str(Path(video).stem)
     auxiliaryfunctions.attempttomakefolder(os.path.join(basefolder,'plot-poses'))
     tmpfolder = os.path.join(basefolder,'plot-poses', vname)
@@ -128,7 +127,7 @@ def RunTrajectoryAnalysis(video,basefolder,DLCscorer,videofolder,cfg,showfigures
                 Dataframe = pd.read_hdf(os.path.join(videofolder,str(Path(video).stem) + DLCscorer + '.h5'))
             suffix='_filtered.png'
             
-        PlottingResults(video,tmpfolder,Dataframe,DLCscorer,cfg,showfigures,suffix)
+        PlottingResults(video,tmpfolder,Dataframe,DLCscorer,cfg,showfigures,bodyparts2plot,suffix)
         
     except FileNotFoundError:
         datanames=[fn for fn in os.listdir(videofolder) if (vname in fn) and (".h5" in fn) and "resnet" in fn]
@@ -142,14 +141,14 @@ def RunTrajectoryAnalysis(video,basefolder,DLCscorer,videofolder,cfg,showfigures
             print("Creating plots for:", datanames[0]," instead.")
             
             Dataframe = pd.read_hdf(os.path.join(videofolder,datanames[0]))
-            PlottingResults(video,tmpfolder,Dataframe,DLCscorer,cfg,showfigures,suffix)
+            PlottingResults(video,tmpfolder,Dataframe,DLCscorer,cfg,showfigures,bodyparts2plot,suffix)
 
 
 ##################################################
 # Looping analysis over video
 ##################################################
 
-def plot_trajectories(config,videos,videotype='.avi',shuffle=1,trainingsetindex=0,filtered=False,showfigures=False, destfolder=None):
+def plot_trajectories(config,videos,videotype='.avi',shuffle=1,trainingsetindex=0,filtered=False,showfigures=False, displayedbodyparts='all', destfolder=None):
     """
     Plots the trajectories of various bodyparts across the video.
     
@@ -191,6 +190,8 @@ def plot_trajectories(config,videos,videotype='.avi',shuffle=1,trainingsetindex=
     trainFraction = cfg['TrainingFraction'][trainingsetindex]
     DLCscorer = auxiliaryfunctions.GetScorerName(cfg,shuffle,trainFraction) #automatically loads corresponding model (even training iteration based on snapshot index)
     
+    bodyparts=auxiliaryfunctions.IntersectionofBodyPartsandOnesGivenbyUser(cfg,displayedbodyparts)
+
     Videos=auxiliaryfunctions.Getlistofvideos(videos,videotype)
     for video in Videos:
         print(video)
@@ -204,7 +205,7 @@ def plot_trajectories(config,videos,videotype='.avi',shuffle=1,trainingsetindex=
         basefolder=videofolder
         auxiliaryfunctions.attempttomakefolder(basefolder)
         
-        RunTrajectoryAnalysis(video,basefolder,DLCscorer,videofolder,cfg,showfigures,filtered)
+        RunTrajectoryAnalysis(video,basefolder,DLCscorer,videofolder,cfg,showfigures,bodyparts,filtered)
         print('Plots created! Please check the directory "plot-poses" within the video directory')
 
 if __name__ == '__main__':
